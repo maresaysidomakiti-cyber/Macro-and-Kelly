@@ -70,6 +70,15 @@
   td.act button{margin-left:6px}
   .folder{font-weight:600;word-break:break-all}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:12px}
+  .pw{position:relative}
+  .pw input{padding-right:48px}
+  .pw button{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:36px;padding:0;
+             display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--muted)}
+  .pw button:hover{background:var(--hover);color:var(--text)}
+  .pw svg{width:20px;height:20px}
+  .pw .eye-off{display:none}
+  .pw button[aria-pressed=true] .eye{display:none}
+  .pw button[aria-pressed=true] .eye-off{display:block}
   .quota{margin:0 0 8px}
   .quota-head{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin-bottom:6px}
   .quota-head span:last-child{font-weight:700;font-variant-numeric:tabular-nums}
@@ -127,7 +136,13 @@
       <label for="email">Email</label>
       <input id="email" type="email" autocomplete="username" required>
       <label for="password">Password</label>
-      <input id="password" type="password" autocomplete="current-password" required>
+      <div class="pw">
+        <input id="password" type="password" autocomplete="current-password" required>
+        <button type="button" id="togglePw" aria-label="Show password" aria-pressed="false" title="Show password">
+          <svg class="eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.9 17.9A10.4 10.4 0 0 1 12 19C5.5 19 2 12 2 12a18.5 18.5 0 0 1 4.1-5.1M9.9 5.2A9.7 9.7 0 0 1 12 5c6.5 0 10 7 10 7a18.6 18.6 0 0 1-2.2 3.2M14.1 14.2a3 3 0 0 1-4.2-4.2M2 2l20 20"/></svg>
+        </button>
+      </div>
       <p class="err" id="loginErr"></p>
       <button class="primary" type="submit" style="width:100%">Log in</button>
     </form>
@@ -241,7 +256,16 @@
     if (error) { $('loginErr').textContent = error.message; return; }
     showApp(data.session);
   });
-  $('logout').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+  $('togglePw').onclick = () => {
+    const pw = $('password'), b = $('togglePw');
+    const show = pw.type === 'password';
+    pw.type = show ? 'text' : 'password';
+    b.setAttribute('aria-pressed', show);
+    b.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    b.title = show ? 'Hide password' : 'Show password';
+    pw.focus();
+  };
+  $('logout').onclick =async () => { await sb.auth.signOut(); location.reload(); };
 
   // ---------- tabs ----------
   document.querySelectorAll('[data-tab]').forEach(t => t.onclick = () => {
