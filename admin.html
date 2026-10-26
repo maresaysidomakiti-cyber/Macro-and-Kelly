@@ -70,6 +70,15 @@
   td.act button{margin-left:6px}
   .folder{font-weight:600;word-break:break-all}
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:12px}
+  .quota{margin:0 0 8px}
+  .quota-head{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin-bottom:6px}
+  .quota-head span:last-child{font-weight:700;font-variant-numeric:tabular-nums}
+  .bar{height:10px;border-radius:999px;background:var(--line);overflow:hidden}
+  .bar span{display:block;height:100%;width:0;border-radius:999px;background:var(--accent);transition:width .4s ease}
+  .quota.warn .bar span{background:#c77a12} .quota.warn .quota-head span:last-child{color:#c77a12}
+  .quota.full .bar span{background:var(--err)} .quota.full .quota-head span:last-child{color:var(--err)}
+  .quota-note{margin:6px 0 0;font-size:14px;font-weight:600}
+  .quota.warn .quota-note{color:#c77a12} .quota.full .quota-note{color:var(--err)}
   .tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   label.auto{display:inline-flex;align-items:center;gap:6px;margin:0 8px 0 0;font-weight:500;cursor:pointer}
   label.auto input{width:auto;accent-color:var(--accent)}
@@ -150,6 +159,11 @@
           <button id="refresh">Refresh</button>
           <button class="primary" id="downloadAll" disabled>Download all (.zip)</button>
         </div>
+      </div>
+      <div class="quota" id="quota">
+        <div class="quota-head"><span id="quotaText">Storage</span><span id="quotaPct"></span></div>
+        <div class="bar" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" id="quotaBar"><span id="quotaFill"></span></div>
+        <p class="quota-note" id="quotaNote" hidden></p>
       </div>
       <p id="progress" role="status" aria-live="polite"></p>
       <div class="card" style="padding:8px 12px">
@@ -251,7 +265,7 @@
   function fmtSize(b){
     if (b < 1024*1024) return (b/1024).toFixed(0) + ' KB';
     if (b < 1024*1024*1024) return (b/1024/1024).toFixed(1) + ' MB';
-    return (b/1024/1024/1024).toFixed(2) + ' GB';
+    return parseFloat((b/1024/1024/1024).toFixed(2)) + ' GB';
   }
   function fmtDate(s){
     if (!s) return '';
@@ -320,10 +334,29 @@
     $('statPhones').textContent = folders.length;
     $('statPhotos').textContent = photos;
     $('statSize').textContent = fmtSize(size);
+    renderQuota(size);
     $('downloadAll').disabled = !photos;
     const em = $('emptyMsg');
     em.hidden = !!folders.length;
     em.textContent = 'No photos yet. If guests have uploaded and you still see nothing, check that your login email is listed in the event_admins table (see setup.sql).';
+  }
+
+  // Storage limit: set STORAGE_LIMIT_MB in config.js (free plan = 1024, Pro = 102400)
+  const LIMIT = (+C.STORAGE_LIMIT_MB || 1024) * 1024 * 1024;
+  function renderQuota(size){
+    const pct = Math.min(100, size / LIMIT * 100);
+    const q = $('quota');
+    $('quotaText').textContent = fmtSize(size) + ' of ' + fmtSize(LIMIT) + ' used';
+    $('quotaPct').textContent = (pct < 10 ? pct.toFixed(1) : Math.round(pct)) + '%';
+    $('quotaFill').style.width = Math.max(pct, size ? 1 : 0) + '%';
+    $('quotaBar').setAttribute('aria-valuenow', Math.round(pct));
+    q.classList.toggle('warn', pct >= 75 && pct < 90);
+    q.classList.toggle('full', pct >= 90);
+    const note = $('quotaNote');
+    if (pct >= 100) { note.hidden = false; note.textContent = 'Storage is full. Download the photos and delete some, or upgrade your Supabase plan, or uploads may soon be blocked.'; }
+    else if (pct >= 90) { note.hidden = false; note.textContent = 'Almost full. Download and delete photos, or upgrade your Supabase plan.'; }
+    else if (pct >= 75) { note.hidden = false; note.textContent = 'Getting full. About ' + fmtSize(LIMIT - size) + ' left.'; }
+    else note.hidden = true;
   }
 
   function slugName(s){ return (C.EVENT_NAME + '-' + s).replace(/[^a-z0-9-]+/gi,'-').replace(/-+/g,'-').toLowerCase(); }
